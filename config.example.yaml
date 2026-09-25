@@ -1,0 +1,21 @@
+# Copie para config.yaml e ajuste.
+interval_seconds: 120        # de quanto em quanto tempo verificar (evite < 60)
+state_file: state.json       # onde o bot guarda o que já avisou
+silent_first_run: false      # true = na 1ª vez só registra o que já existe, sem avisar
+
+searches:
+  - name: Pokémon 30 anos - TCG
+    query: pokemon 30 anos
+    stores: [amazon, mercadolivre]
+    must_include: [pokemon, "30"]          # o título precisa ter TODAS essas palavras
+    exclude: [capa, sleeve, adesivo, camiseta, "case"]  # descarta se tiver QUALQUER uma
+    max_price: 1500          # ignora anúncios acima disso (cambista)
+    target_price: 400        # <= isso: alerta URGENTE "compre já"
+
+  - name: Pokémon 30th Anniversary
+    query: pokemon 30th anniversary
+    stores: [amazon, mercadolivre]
+    must_include: [pokemon]
+    exclude: [capa, sleeve]
+    max_price: 1500
+    target_price: 400

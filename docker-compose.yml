@@ -1,0 +1,10 @@
+services:
+  pokebot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POKEBOT_STATE_FILE: /data/state/state.json
+    volumes:
+      - ./config.yaml:/data/config.yaml:ro
+      - ./data:/data/state
