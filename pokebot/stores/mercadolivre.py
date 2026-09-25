@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 from urllib.parse import quote
@@ -11,6 +12,7 @@ from .base import BlockedError, make_session
 
 API = "https://api.mercadolibre.com/sites/MLB/search"
 LIST = "https://lista.mercadolivre.com.br"
+log = logging.getLogger(__name__)
 ID_RE = re.compile(r"(MLB)-?(\d+)", re.I)
 
 
@@ -45,7 +47,13 @@ class MercadoLivreStore:
         if resp.status_code in (403, 429):
             raise BlockedError(f"Mercado Livre respondeu {resp.status_code}")
         resp.raise_for_status()
-        return parse_search_html(resp.text)
+        products = parse_search_html(resp.text)
+        if not products:
+            title = BeautifulSoup(resp.text, "html.parser").title
+            log.warning("ML sem resultados: status=%s url=%s título=%r tamanho=%d trecho=%r",
+                        resp.status_code, resp.url, title.get_text(strip=True) if title else None,
+                        len(resp.text), resp.text[:300])
+        return products
 
 
 def parse_api_json(data: dict) -> list[Product]:
