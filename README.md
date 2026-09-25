@@ -32,17 +32,33 @@ A próxima rodada já usa a versão nova.
 Na primeira rodada, o bot só avisa o que **já está no preço-alvo**. O resto ele só registra, para
 não mandar dezenas de avisos de uma vez. Depois disso, avisa todo anúncio **novo**.
 
-### Limites de rodar no GitHub
+### Limites de rodar no GitHub (testado)
 
-- **Não é instantâneo:** o intervalo mínimo é 5 min, e o GitHub atrasa o agendamento em
-  horário de pico (às vezes 10–20 min). Para verificar a cada 1–2 min, rode num PC/VPS (abaixo).
-- **Amazon costuma bloquear** os servidores do GitHub (captcha). Nos logs aparece
-  `amazon bloqueou`. O Mercado Livre costuma funcionar melhor. Se a Amazon for essencial,
-  rode o bot em casa.
-- Em repositório público, o GitHub **pausa agendamentos depois de 60 dias sem nenhum commit**.
-  Ele manda um e-mail antes. É só clicar em "Enable workflow" em Actions (ou fazer qualquer commit).
-- Os termos do GitHub Actions pedem que ele seja usado para projetos de software. Um bot
-  pequeno de 5 em 5 minutos é tolerado na prática, mas não é garantido.
+As duas lojas **bloqueiam os servidores do GitHub** quando o bot lê o site direto:
+- **Amazon:** responde com captcha. Pelo GitHub a Amazon **não funciona**.
+- **Mercado Livre:** redireciona para "verificação de conta / tráfego suspeito". A saída é usar a
+  **API oficial**, que aceita servidor. Veja "Mercado Livre pelo GitHub" abaixo.
+
+Outros limites:
+- **Não é instantâneo:** o intervalo mínimo é 5 min, e o GitHub atrasa em horário de pico.
+- Em repositório público, o GitHub **pausa agendamentos depois de 60 dias sem commit**
+  (ele manda e-mail antes). É só reativar em Actions.
+- Os termos do GitHub Actions pedem uso ligado a projetos de software. Um bot pequeno de 5 em 5 min
+  é tolerado na prática, mas não é garantido.
+
+Para a Amazon, o jeito que funciona é rodar em casa (PC ligado, notebook velho ou Raspberry Pi),
+porque a internet residencial quase não é bloqueada.
+
+### Mercado Livre pelo GitHub (API oficial)
+
+1. Entre em <https://developers.mercadolivre.com.br> com sua conta do ML e vá em
+   **Minhas aplicações → Criar aplicação**.
+2. Preencha nome e descrição. Em *URI de redirect* pode colocar `https://github.com/ronansantos05/bot`.
+   Nas permissões, só leitura já basta.
+3. Copie o **Client ID** (ou "App ID") e a **Client Secret** (ou "Chave secreta").
+4. No GitHub, crie os secrets `ML_CLIENT_ID` e `ML_CLIENT_SECRET`, do mesmo jeito que o `NTFY_TOPIC`.
+
+O bot gera o token sozinho a cada rodada, então você não precisa renovar nada.
 
 ## Rodando no seu PC / VPS (verificação mais rápida)
 
@@ -73,12 +89,6 @@ Crie um bot com o `@BotFather` (`/newbot`) e pegue seu id com o `@userinfobot`. 
 | `max_price` | Ignora anúncios mais caros que isso (cambistas) |
 | `min_price` | Ignora anúncios mais baratos que isso (acessórios, golpe) |
 | `target_price` | Igual ou abaixo disso: alerta **urgente** de compra |
-
-### Mercado Livre: API oficial (opcional)
-
-Sem token, o bot lê a página de busca pública. Para ficar mais estável, crie um app em
-<https://developers.mercadolivre.com.br>, gere um access token e coloque em `ML_ACCESS_TOKEN`.
-O token expira em 6h, então isso só compensa se você for automatizar a renovação.
 
 ## E comprar sozinho?
 

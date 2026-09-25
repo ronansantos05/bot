@@ -46,3 +46,51 @@ def test_ml_api_parser():
                          "permalink": "https://ml/MLB1"}]}
     (p,) = mercadolivre.parse_api_json(data)
     assert (p.id, p.price, p.url) == ("MLB1", 99.9, "https://ml/MLB1")
+
+
+class FakeResp:
+    def __init__(self, status=200, url="https://lista.mercadolivre.com.br/x", text="", data=None):
+        self.status_code, self.url, self.text, self._data = status, url, text, data
+        self.ok = status < 400
+
+    def json(self):
+        return self._data
+
+    def raise_for_status(self):
+        pass
+
+
+class FakeSession:
+    def __init__(self, *responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def get(self, url, **kw):
+        self.calls.append(("GET", url, kw))
+        return self.responses.pop(0)
+
+    def post(self, url, **kw):
+        self.calls.append(("POST", url, kw))
+        return self.responses.pop(0)
+
+
+def test_ml_verification_page_is_blocked(monkeypatch):
+    import pytest
+    from pokebot.stores.base import BlockedError
+    for var in ("ML_ACCESS_TOKEN", "ML_CLIENT_ID", "ML_CLIENT_SECRET"):
+        monkeypatch.delenv(var, raising=False)
+    s = FakeSession(FakeResp(url="https://www.mercadolivre.com.br/gz/account-verification?go=x"))
+    with pytest.raises(BlockedError):
+        mercadolivre.MercadoLivreStore(session=s).search("pokemon")
+
+
+def test_ml_client_credentials(monkeypatch):
+    monkeypatch.delenv("ML_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("ML_CLIENT_ID", "id")
+    monkeypatch.setenv("ML_CLIENT_SECRET", "secret")
+    api = {"results": [{"id": "MLB1", "title": "Pokemon 30", "price": 10, "permalink": "u"}]}
+    s = FakeSession(FakeResp(data={"access_token": "TOK"}), FakeResp(data=api))
+    items = mercadolivre.MercadoLivreStore(session=s).search("pokemon")
+    assert [p.id for p in items] == ["MLB1"]
+    assert s.calls[0][2]["data"]["grant_type"] == "client_credentials"
+    assert s.calls[1][2]["headers"]["Authorization"] == "Bearer TOK"

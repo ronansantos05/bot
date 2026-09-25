@@ -11,13 +11,19 @@ from ..models import Product, parse_brl
 from .base import BlockedError, make_session
 
 API = "https://api.mercadolibre.com/sites/MLB/search"
+TOKEN_URL = "https://api.mercadolibre.com/oauth/token"
 LIST = "https://lista.mercadolivre.com.br"
 log = logging.getLogger(__name__)
 ID_RE = re.compile(r"(MLB)-?(\d+)", re.I)
 
 
 class MercadoLivreStore:
-    """Usa a API oficial se houver ML_ACCESS_TOKEN; senão, lê a página de busca."""
+    """Usa a API oficial se houver credenciais; senão, lê a página de busca.
+
+    Credenciais (em ordem de preferência):
+    - ML_CLIENT_ID + ML_CLIENT_SECRET: o bot gera o token sozinho (não expira pra você).
+    - ML_ACCESS_TOKEN: token pronto (expira em 6h).
+    """
 
     name = "mercadolivre"
 
@@ -25,20 +31,42 @@ class MercadoLivreStore:
         self.session = session or make_session()
         self.timeout = timeout
         self.access_token = access_token or os.getenv("ML_ACCESS_TOKEN")
+        self.client_id = os.getenv("ML_CLIENT_ID")
+        self.client_secret = os.getenv("ML_CLIENT_SECRET")
 
     def search(self, query: str) -> list[Product]:
+        if self.client_id and self.client_secret and not self.access_token:
+            self.access_token = self._client_credentials_token()
         if self.access_token:
             return self._search_api(query)
         return self._search_html(query)
+
+    def _client_credentials_token(self) -> str:
+        resp = self.session.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "client_credentials",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            },
+            headers={"Accept": "application/json"},
+            timeout=self.timeout,
+        )
+        if not resp.ok:
+            raise RuntimeError(f"ML recusou as credenciais ({resp.status_code}): {resp.text[:300]}")
+        return resp.json()["access_token"]
 
     def _search_api(self, query: str) -> list[Product]:
         resp = self.session.get(
             API,
             params={"q": query, "sort": "price_asc", "limit": 50},
-            headers={"Authorization": f"Bearer {self.access_token}"},
+            headers={"Authorization": f"Bearer {self.access_token}", "Accept": "application/json"},
             timeout=self.timeout,
         )
-        resp.raise_for_status()
+        if resp.status_code == 401 and self.client_id:
+            self.access_token = None  # token venceu: gera outro na próxima busca
+        if not resp.ok:
+            raise RuntimeError(f"API do ML respondeu {resp.status_code}: {resp.text[:300]}")
         return parse_api_json(resp.json())
 
     def _search_html(self, query: str) -> list[Product]:
@@ -46,6 +74,8 @@ class MercadoLivreStore:
         resp = self.session.get(f"{LIST}/{slug}_NoIndex_True", timeout=self.timeout)
         if resp.status_code in (403, 429):
             raise BlockedError(f"Mercado Livre respondeu {resp.status_code}")
+        if "account-verification" in resp.url or "suspicious-traffic" in resp.text[:2000]:
+            raise BlockedError("Mercado Livre pediu verificação (tráfego suspeito)")
         resp.raise_for_status()
         products = parse_search_html(resp.text)
         if not products:
