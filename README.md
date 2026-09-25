@@ -6,65 +6,61 @@ aparece um anúncio novo, quando o preço cai ou quando fica **igual ou abaixo d
 
 ## Como funciona
 
-- A cada `interval_seconds` (padrão 120s, com variação aleatória), roda cada busca do `config.yaml`.
+- Roda cada busca do `config.yaml`: no GitHub a cada ~5 min; no PC a cada `interval_seconds` (padrão 120s).
 - Filtra pelo título (`must_include` / `exclude`, sem diferenciar acento nem maiúscula) e pela faixa de preço.
 - Avisa **uma vez** por anúncio (fica registrado em `state.json`) e avisa de novo se o preço cair.
 - Se o preço for `<= target_price`, o alerta sai como **URGENTE** ("🔥 NO SEU PREÇO — COMPRE JÁ").
 - Na Amazon, o botão **Comprar** abre o site com o item **já no carrinho**: você só confirma.
 - Se uma loja bloquear (captcha), o bot pausa só aquela loja (1 min, 2, 4… até 1h) e continua com a outra.
 
-## Instalação
+## Rodando no GitHub (sem precisar do seu PC)
+
+O bot roda sozinho pelo **GitHub Actions** (`.github/workflows/pokebot.yml`), a cada ~5 minutos.
+Esse repositório é público, então os minutos são de graça. Só falta uma coisa que você precisa
+fazer, porque o nome do tópico do ntfy é secreto e não pode ficar no código:
+
+1. No app **ntfy**, toque em **+** e assine um tópico com um nome difícil de adivinhar
+   (ex.: `pokebot-ronan-x7k29q`). Qualquer um que souber o nome recebe os seus avisos.
+2. No GitHub, abra o repositório e vá em **Settings → Secrets and variables → Actions →
+   New repository secret**. Em *Name* coloque `NTFY_TOPIC` e em *Secret* o nome do tópico.
+3. Vá em **Actions → pokebot → Run workflow**. Na primeira vez chega uma notificação
+   **"✅ TESTE"** no celular. Se chegou, está pronto: a partir daí ele roda sozinho.
+
+Para mudar buscas ou preços, edite o `config.yaml` direto no GitHub (ícone de lápis) e salve.
+A próxima rodada já usa a versão nova.
+
+Na primeira rodada, o bot só avisa o que **já está no preço-alvo**. O resto ele só registra, para
+não mandar dezenas de avisos de uma vez. Depois disso, avisa todo anúncio **novo**.
+
+### Limites de rodar no GitHub
+
+- **Não é instantâneo:** o intervalo mínimo é 5 min, e o GitHub atrasa o agendamento em
+  horário de pico (às vezes 10–20 min). Para verificar a cada 1–2 min, rode num PC/VPS (abaixo).
+- **Amazon costuma bloquear** os servidores do GitHub (captcha). Nos logs aparece
+  `amazon bloqueou`. O Mercado Livre costuma funcionar melhor. Se a Amazon for essencial,
+  rode o bot em casa.
+- Em repositório público, o GitHub **pausa agendamentos depois de 60 dias sem nenhum commit**.
+  Ele manda um e-mail antes. É só clicar em "Enable workflow" em Actions (ou fazer qualquer commit).
+- Os termos do GitHub Actions pedem que ele seja usado para projetos de software. Um bot
+  pequeno de 5 em 5 minutos é tolerado na prática, mas não é garantido.
+
+## Rodando no seu PC / VPS (verificação mais rápida)
 
 ```bash
-git clone <este repo> && cd bot
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp config.example.yaml config.yaml   # edite as buscas e os preços
-cp .env.example .env                 # configure a notificação
+cp .env.example .env                 # coloque NTFY_TOPIC
+python -m pokebot --test-notify      # testa a notificação
+python -m pokebot --once             # uma verificação só
+python -m pokebot                    # fica rodando (a cada interval_seconds)
 ```
 
-### Notificação no celular (escolha uma ou as duas)
+Ou com Docker (VPS, Raspberry Pi): `cp .env.example .env`, edite, e `docker compose up -d --build`.
 
-**ntfy (a mais simples, sem conta):**
-1. Instale o app **ntfy** (Android/iOS).
-2. Toque em "+", escolha um nome de tópico difícil de adivinhar (ex.: `pokebot-ronan-8f3k2`).
-3. Coloque o mesmo nome em `NTFY_TOPIC` no `.env`.
-4. No app, ative a prioridade máxima para o tópico, assim o alerta urgente toca alto.
+### Telegram (opcional)
 
-**Telegram:**
-1. Fale com o `@BotFather`, use `/newbot` e copie o token para `TELEGRAM_BOT_TOKEN`.
-2. Mande qualquer mensagem pro seu bot e pegue seu id com o `@userinfobot`. Coloque em `TELEGRAM_CHAT_ID`.
-
-Teste:
-
-```bash
-python -m pokebot --test-notify
-```
-
-## Rodando
-
-```bash
-python -m pokebot --once   # uma verificação só, para testar os filtros
-python -m pokebot          # fica rodando para sempre
-```
-
-Dica: na primeira vez, use `silent_first_run: true` se não quiser receber aviso de tudo o
-que já está à venda. A partir daí, você só recebe os anúncios **novos**.
-
-### 24h por dia
-
-O bot precisa ficar ligado em algum lugar. Opções:
-
-- **Seu PC / Raspberry Pi** ligado direto.
-- **VPS barata ou grátis** (Oracle Cloud Free Tier, por exemplo) com Docker:
-  ```bash
-  cp config.example.yaml config.yaml && cp .env.example .env   # edite os dois
-  docker compose up -d --build
-  docker compose logs -f
-  ```
-
-> IPs de datacenter são bloqueados pela Amazon com mais frequência que IP residencial.
-> Se só a Amazon ficar dando captcha, rode o bot em casa (PC ou Raspberry Pi).
+Crie um bot com o `@BotFather` (`/newbot`) e pegue seu id com o `@userinfobot`. Coloque em
+`TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`, como secrets no GitHub ou no `.env`.
 
 ## Configuração (`config.yaml`)
 

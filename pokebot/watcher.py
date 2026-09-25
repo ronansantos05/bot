@@ -51,8 +51,10 @@ class Watcher:
                 old = self.state.seen.get(key)
                 dropped = (not is_new and p.price is not None
                            and (old is None or p.price < old))
-                if (is_new or dropped) and not silent:
-                    self.notifier.send(search, p, search.is_deal(p.price),
+                deal = search.is_deal(p.price)
+                # No modo silencioso só passa o que já está no preço-alvo.
+                if (is_new or dropped) and (deal or not silent):
+                    self.notifier.send(search, p, deal,
                                        old_price=old if dropped else None)
                     sent += 1
                 if is_new or dropped:
@@ -62,7 +64,7 @@ class Watcher:
     def run_once(self) -> int:
         silent = self.config.silent_first_run and self.state.empty
         if silent:
-            log.info("Primeira execução: registrando anúncios existentes sem notificar.")
+            log.info("Primeira execução: registrando anúncios existentes; só aviso os que já estão no preço-alvo.")
         sent = sum(self.check_search(s, silent=silent) for s in self.config.searches)
         self.state.save()
         return sent

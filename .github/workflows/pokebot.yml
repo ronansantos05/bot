@@ -1,0 +1,60 @@
+name: pokebot
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # a cada 5 min (mínimo do GitHub; pode atrasar em horário de pico)
+  workflow_dispatch:         # botão "Run workflow" para rodar na hora
+
+# Nunca roda duas verificações ao mesmo tempo.
+concurrency:
+  group: pokebot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # state.json guarda o que já foi avisado, para não repetir notificação.
+      - name: Restaurar memória do bot
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: pokebot-state-${{ github.run_id }}
+          restore-keys: pokebot-state-
+
+      - name: Verificar lojas
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ML_ACCESS_TOKEN: ${{ secrets.ML_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ] && [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            # Aviso em vez de erro, para o GitHub não mandar e-mail de falha a cada 5 min.
+            echo "::warning::Crie o secret NTFY_TOPIC em Settings > Secrets and variables > Actions"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ ! -f state.json ]; then
+            python -m pokebot --test-notify
+          fi
+          python -m pokebot --once
+
+      - name: Salvar memória do bot
+        if: always() && hashFiles('state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: pokebot-state-${{ github.run_id }}

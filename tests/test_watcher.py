@@ -69,10 +69,11 @@ def test_state_persists(tmp_path):
 
 
 def test_silent_first_run(tmp_path):
-    w, store, n = make(tmp_path, [p("A")])
+    w, store, n = make(tmp_path, [p("A"), p("D", price=100)], target_price=150)
     w.config.silent_first_run = True
     w.run_once()
-    assert n.sent == []
+    assert n.sent == [("D", True, None)]  # só o que já está no preço-alvo
+    n.sent.clear()
     store.products = [p("A"), p("B")]
     w.run_once()
     assert n.sent == [("B", False, None)]

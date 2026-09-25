@@ -1,7 +1,7 @@
-# Copie para config.yaml e ajuste.
+# Edite à vontade: buscas, palavras e preços. Salvou/commitou, o bot já usa na próxima rodada.
 interval_seconds: 120        # de quanto em quanto tempo verificar (evite < 60)
 state_file: state.json       # onde o bot guarda o que já avisou
-silent_first_run: false      # true = na 1ª vez só registra o que já existe, sem avisar
+silent_first_run: true       # na 1ª vez só avisa o que já está <= target_price (evita dezenas de avisos)
 
 searches:
   - name: Pokémon 30 anos - TCG

@@ -13,9 +13,10 @@ log = logging.getLogger(__name__)
 STORE_LABEL = {"amazon": "Amazon", "mercadolivre": "Mercado Livre"}
 
 
-def build_message(search: Search, product: Product, deal: bool, old_price: float | None = None):
+def build_message(search: Search, product: Product, deal: bool, old_price: float | None = None,
+                  head: str | None = None):
     store = STORE_LABEL.get(product.store, product.store)
-    head = "🔥 NO SEU PREÇO — COMPRE JÁ" if deal else "🆕 Encontrado"
+    head = head or ("🔥 NO SEU PREÇO — COMPRE JÁ" if deal else "🆕 Encontrado")
     title = f"{head}: {search.name} ({store})"
     price = format_brl(product.price)
     if old_price is not None and product.price is not None:
@@ -35,8 +36,9 @@ class Notifier:
         if not (self.ntfy_topic or (self.tg_token and self.tg_chat)):
             log.warning("Nenhum canal configurado (NTFY_TOPIC ou TELEGRAM_*): só vou logar.")
 
-    def send(self, search: Search, product: Product, deal: bool, old_price: float | None = None):
-        title, body = build_message(search, product, deal, old_price)
+    def send(self, search: Search, product: Product, deal: bool, old_price: float | None = None,
+             head: str | None = None):
+        title, body = build_message(search, product, deal, old_price, head)
         log.info("ALERTA %s | %s", title, body.replace("\n", " | "))
         if self.ntfy_topic:
             self._ntfy(title, body, product, deal)

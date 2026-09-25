@@ -44,9 +44,9 @@ def main():
     if args.test_notify:
         from .models import Product
         search = config.searches[0]
-        Notifier().send(search, Product("amazon", "TESTE", "Notificação de teste do pokebot",
+        Notifier().send(search, Product("amazon", "TESTE", "Se você recebeu isto, o pokebot está funcionando.",
                                         search.target_price, "https://www.amazon.com.br"),
-                        deal=True)
+                        deal=True, head="✅ TESTE")
         return
 
     watcher = Watcher(config)
