@@ -43,8 +43,10 @@ jobs:
           ML_ACCESS_TOKEN: ${{ secrets.ML_ACCESS_TOKEN }}
         run: |
           if [ -z "$NTFY_TOPIC" ] && [ -z "$TELEGRAM_BOT_TOKEN" ]; then
-            # Aviso em vez de erro, para o GitHub não mandar e-mail de falha a cada 5 min.
+            # Sem canal: só mostra nos logs o que encontraria, sem gravar memória.
+            # (Aviso em vez de erro, para o GitHub não mandar e-mail de falha a cada 5 min.)
             echo "::warning::Crie o secret NTFY_TOPIC em Settings > Secrets and variables > Actions"
+            POKEBOT_STATE_FILE=/tmp/dry-run.json python -m pokebot --once
             exit 0
           fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ ! -f state.json ]; then
